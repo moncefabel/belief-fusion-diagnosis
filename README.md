@@ -21,107 +21,154 @@ This is **Verrou 3** of the target CIFRE doctoral thesis
 > *"When heterogeneous agents produce contradictory diagnostics, what
 > formal mechanism arbitrates without erasing the diversity of models?"*
 
-This repository prototypes an answer using **Dempster-Shafer (DS)
-theory of evidence** — a framework for fusing uncertain, partial, and
-conflicting beliefs from multiple independent sources.
+This repository prototypes three answers of increasing sophistication:
+1. **Classic Dempster combination** — baseline arbitration
+2. **PCR5** — proportional conflict redistribution under high conflict
+3. **Temporal fusion** — sequential belief update as stream evidence arrives
 
 ---
 
 ## Why Dempster-Shafer?
 
-Standard probabilistic fusion (e.g., Bayesian) requires a shared prior
-and assumes all agents reason over the same probability space. In a
-heterogeneous multi-agent system, this assumption fails:
+Standard Bayesian fusion requires a shared prior. In a heterogeneous
+multi-agent system, agents reason over different feature spaces and
+cannot easily share a common probabilistic model. DS theory provides:
 
-- Agent A (ML-based) outputs class probabilities from training data
-- Agent B (rule-based expert system) outputs confidence scores from audit logs
-- Agent C (causal model) reasons over intervention probabilities
-
-DS theory provides a principled framework that:
-
-1. **Preserves agent diversity** — each agent's belief mass is maintained
-2. **Quantifies conflict** — inter-agent disagreement K is a diagnostic
-   signal in itself (high K = genuinely ambiguous incident)
-3. **Produces uncertainty intervals** [Bel(A), Pl(A)] rather than point
-   estimates — essential for auditable, explainable systems
-4. **Requires no prior** — agents contribute evidence, not posteriors
+1. **Agent diversity preservation** — each agent's belief mass is maintained independently
+2. **Explicit conflict quantification** — K is a first-class diagnostic output
+3. **Uncertainty intervals** [Bel(A), Pl(A)] — richer than point estimates, essential for auditable systems
+4. **No shared prior** — agents contribute evidence, not posteriors
 
 ---
 
 ## Scenario
 
-Two agents analyse a network incident (latency spike + CPU spike on a router):
+Two agents analyse a network incident (latency spike + CPU spike):
 
-| Agent | Type | Hypotheses | Confidence |
+| Agent | Type | Primary hypothesis | Confidence |
 |---|---|---|---|
-| **Agent A** | ML anomaly detector | DDoS (0.50), Hardware Failure (0.25) | High on DDoS |
-| **Agent B** | Rule-based expert | Config Error (0.40), Normal (0.30) | High on Config |
-
-The agents are in **partial conflict** — A suspects an attack, B suspects
-a configuration issue. DS combination fuses their beliefs and produces a
-normalised posterior over all hypotheses.
+| **Agent A** | ML anomaly detector | DDoS (0.50) | High |
+| **Agent B** | Rule-based expert | Config Error (0.40) | High |
 
 ---
 
-## Results
+## Experiment 1 — Classic DS Combination
 
 ```
-Agent A (ML detector):
-  m({DDoS})                    = 0.5000
-  m({Hardware_Failure})        = 0.2500
-  m({DDoS, Hardware_Failure})  = 0.1500
-  m(Θ)                         = 0.1000
-
-Agent B (Expert system):
-  m({Config_Error})            = 0.4000
-  m({Normal})                  = 0.3000
-  m({Config_Error, Normal})    = 0.2000
-  m(Θ)                         = 0.1000
-
-Conflict K = 0.5750  (moderate disagreement)
+Conflict K = 0.81  (HIGH disagreement)
 
 Fused Belief:
-  m({DDoS})                    = 0.2353
-  m({Hardware_Failure})        = 0.0588
-  m({Config_Error})            = 0.2353
-  m({Normal})                  = 0.1765
-  ...
+  m({DDoS})             = 0.2632   ← most supported
+  m({Config_Error})     = 0.2105
+  m({Normal})           = 0.1579
+  m({Hardware_Failure}) = 0.1316
 
-Uncertainty intervals [Bel(A), Pl(A)]:
-  DDoS            [0.235, 0.471]  width=0.235
-  Config_Error    [0.235, 0.471]  width=0.235
-  Normal          [0.176, 0.412]  width=0.235
-  Hardware_Failure[0.059, 0.294]  width=0.235
+Uncertainty intervals:
+  DDoS             [0.263, 0.395]
+  Config_Error     [0.211, 0.368]
 ```
 
-**Key finding:** After fusion, DDoS and Config_Error are equally
-supported (m = 0.235). The moderate conflict (K = 0.575) signals
-genuine diagnostic ambiguity — neither agent alone has sufficient
-evidence. This is the correct output: the system should escalate
-rather than commit to a single diagnosis.
+K = 0.81 → HIGH conflict. DDoS is most supported but margin is small
+(Δ = 0.053 over Config_Error). Correct response: **escalate, do not
+auto-remediate.** High conflict is diagnostic information.
 
-![Dempster-Shafer Fusion](results/dempster_shafer_fusion.png)
+![DS Fusion](results/dempster_shafer_fusion.png)
+
+---
+
+## Experiment 2 — PCR5 vs Classic DS (High Conflict)
+
+At K = 0.81, Dempster's normalisation enters Zadeh's paradox territory.
+PCR5 (Proportional Conflict Redistribution) redistributes conflict mass
+back to the hypotheses that generated it, proportionally.
+
+```
+Hypothesis        DS      PCR5    Delta
+Config_Error    0.2105  0.2341  +0.0235
+DDoS            0.2632  0.3263  +0.0631
+Hardware_Failure 0.1316 0.1253  -0.0062
+Normal          0.1579  0.1572  -0.0007
+
+Both rules agree: DDoS is best hypothesis.
+PCR5 is more decisive (higher DDoS mass, larger margin).
+```
+
+![DS vs PCR5](results/dsmt_comparison.png)
+
+**Finding:** Under K > 0.7, PCR5 consistently produces larger margins
+between hypotheses — more decisive without amplification artefacts.
+Adaptive rule selection (DS if K < 0.5, PCR5 if K > 0.7) is a concrete
+thesis research axis.
+
+---
+
+## Experiment 3 — Temporal Belief Fusion
+
+Sequential evidence integration over 5 timesteps simulates a real
+network incident unfolding in time.
+
+```
+t=0  CPU spike          K=0.300  Best: Normal       (m=0.250)
+t=1  Latency spike      K=0.640  Best: DDoS         (m=0.222)
+t=2  Packet drop        K=0.680  Best: DDoS         (m=0.313)
+t=3  Config audit ⚠️    K=0.723  Best: Config_Error (m=0.297)  ← PIVOT
+t=4  Threat intel       K=0.720  Best: DDoS         (m=0.464)  ← convergence
+```
+
+![Temporal Fusion](results/temporal_fusion.png)
+
+**Key finding — The pivot at t=3:**
+The config audit finding temporarily flips the leading hypothesis from
+DDoS to Config_Error. DDoS mass dips from 0.313 → 0.243 before recovering
+to 0.464 after threat intelligence confirms the attack signature.
+
+K(t) correctly signals *"hold decision"* at t=3 (K = 0.723 > 0.70) —
+the system should not commit to auto-remediation at this point.
+
+**DDoS mass trajectory:** `[0.171, 0.222, 0.313, 0.243, 0.464]`
+
+---
+
+## K(t) as a Self-Organisation Signal
+
+The conflict measure K(t) provides a natural self-organisation trigger:
+
+| K value | Interpretation | System action |
+|---|---|---|
+| K < 0.3 | Agents converge | Safe to commit to diagnosis |
+| 0.3 ≤ K < 0.7 | Moderate disagreement | Proceed with uncertainty interval |
+| K ≥ 0.7 | High conflict | Defer decision, request more evidence |
+
+This directly addresses **Verrou 4** (self-organisation under time and
+reliability constraints) and connects belief fusion to the earliness–
+reliability–stability trilemma studied in
+[stream-anomaly-benchmark](https://github.com/moncefabel/stream-anomaly-benchmark).
 
 ---
 
 ## Thesis Implications
 
-**Verrou 3 — Formal arbitration under disagreement:**
-DS combination provides a tractable arbitration mechanism that preserves
-agent diversity and quantifies conflict as an explicit output — directly
-enabling the explainability requirements of the target thesis.
+**Verrou 2 — Semantic contracts:**
+[Bel(A), Pl(A)] intervals encode epistemic state formally. Paired with
+an OWL knowledge graph (NORIA-O), they enable structured reasoning over
+agent agreement — agents that disagree can express their uncertainty in
+a shared semantic space.
 
-**Verrou 2 — Uncertainty intervals as semantic contracts:**
-The [Bel(A), Pl(A)] output is richer than a probability estimate — it
-encodes what is *known* (belief) vs what is *possible* (plausibility),
-enabling formal reasoning over agent agreement and disagreement.
+**Verrou 3 — Formal arbitration:**
+DS + PCR5 provides a principled, traceable arbitration mechanism.
+The combination is auditable: every output mass is traceable to specific
+input BPAs and the combination rule applied.
 
-**Open question for the thesis:**
-DS theory is defined for static evidence. Extending it to **online /
-streaming settings** — where agent beliefs must be updated incrementally
-as new observations arrive — is one of the core research axes. Dynamic
-DS (Dezert-Smarandache) and contextual discounting are candidate
-extensions.
+**Verrou 4 — Self-organisation:**
+K(t) as a self-organisation signal enables adaptive agent behaviour:
+high conflict triggers evidence-gathering agents; low conflict releases
+the decision to automated remediation.
+
+**Open research questions:**
+1. How to extend DS to online streaming with concept drift?
+2. How to set K thresholds adaptively from stream statistics?
+3. Can K(t) serve as a causal marker distinguishing correlated
+   anomalies from causally linked incidents? (Verrou 1)
 
 ---
 
@@ -130,50 +177,39 @@ extensions.
 ```bash
 git clone https://github.com/moncefabel/belief-fusion-diagnosis
 cd belief-fusion-diagnosis
-pip install numpy matplotlib seaborn
-python dempster_shafer_fusion.py
-```
+uv venv && source .venv/bin/activate
+uv pip install -r requirements.txt
 
-No heavy dependencies — pure Python + numpy. Runs in under 5 seconds.
-
----
-
-## Repository Structure
-
-```
-belief-fusion-diagnosis/
-├── dempster_shafer_fusion.py   # BPA, combination rule, scenario, plots
-├── results/
-│   └── dempster_shafer_fusion.png
-├── RESEARCH_NOTES.md
-└── README.md
+cd src
+python dempster_shafer_fusion.py   # Experiment 1
+python dsmt_comparison.py          # Experiment 2
+python temporal_fusion.py          # Experiment 3
 ```
 
 ---
 
 ## Connection to stream-anomaly-benchmark
 
-This project is the formal reasoning companion to
-[stream-anomaly-benchmark](https://github.com/moncefabel/stream-anomaly-benchmark).
+| Project | Core question | Thesis verrou |
+|---|---|---|
+| [stream-anomaly-benchmark](https://github.com/moncefabel/stream-anomaly-benchmark) | *When* to trigger a decision | Verrou 4 — self-organisation |
+| **belief-fusion-diagnosis** | *How* to arbitrate between conflicting agent decisions | Verrous 2, 3 |
 
-The benchmark addresses **when** to trigger a decision (trilemma).
-This project addresses **how** to arbitrate **between** conflicting
-agent decisions once triggered.
-
-Together they prototype the two core coordination problems in
-heterogeneous multi-agent incident diagnosis.
+K(t) from this project provides the **"defer decision"** signal that
+feeds directly into the early stopping criterion studied in
+stream-anomaly-benchmark. Together they prototype the full decision
+cycle: trigger → fuse → arbitrate → escalate or commit.
 
 ---
 
 ## References
 
-- Shafer, G. (1976). *A Mathematical Theory of Evidence*. Princeton University Press.
-- Dempster, A. P. (1967). Upper and lower probabilities induced by a
-  multivalued mapping. *Annals of Mathematical Statistics*, 38(2), 325–339.
-- Tailhardat, L. et al. (2023). NORIA-O: an Ontology for Anomaly Detection
-  and Incident Management in ICT Systems. *ESWC 2023*.
-- Achenchabe, Y., Bondu, A., et al. (2021). Early Classification of Time
-  Series. *Machine Learning*, 110, 1481–1517.
+- Shafer, G. (1976). *A Mathematical Theory of Evidence*. Princeton UP.
+- Dempster, A. P. (1967). Upper and lower probabilities. *Annals of Math. Statistics*, 38(2).
+- Dezert, J., & Smarandanche, F. (2004). *Advances in DSmT for Information Fusion*.
+- Lefevre, E., Colot, O., & Vannoorenberghe, P. (2002). Belief function combination and conflict management. *Information Fusion*, 3(2), 149–162.
+- Tailhardat, L. et al. (2023). NORIA-O: an Ontology for Anomaly Detection. *ESWC 2023*.
+- Achenchabe, Y., Bondu, A., et al. (2021). Early Classification of Time Series. *Machine Learning*, 110.
 
 ---
 
