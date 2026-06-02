@@ -17,7 +17,7 @@ RESULTS = "../results"
 HYPS    = sorted(FRAME)
 
 
-# ── Stream definition ─────────────────────────────────────────────────────────
+#  Stream definition 
 
 STREAM = [
     {
@@ -56,7 +56,7 @@ STREAM = [
 ]
 
 
-# ── Run ───────────────────────────────────────────────────────────────────────
+#  Run 
 
 def run_stream() -> list[dict]:
     history = []
@@ -98,7 +98,7 @@ def run_stream() -> list[dict]:
     return history
 
 
-# ── Plot ──────────────────────────────────────────────────────────────────────
+#  Plot 
 
 def plot_temporal(history: list[dict]) -> None:
     colors = {
@@ -166,7 +166,7 @@ def plot_temporal(history: list[dict]) -> None:
     plt.close()
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+#  Main 
 
 if __name__ == "__main__":
     history = run_stream()

@@ -16,7 +16,7 @@ sns.set_theme(style="whitegrid", font_scale=1.1)
 RESULTS = "../results"
 
 
-# ── PCR5 ──────────────────────────────────────────────────────────────────────
+#  PCR5 
 
 def pcr5_combine(bpa1: BPA, bpa2: BPA, name: str = "PCR5") -> tuple:
     """
@@ -49,7 +49,7 @@ def pcr5_combine(bpa1: BPA, bpa2: BPA, name: str = "PCR5") -> tuple:
     return BPA({A: m / total for A, m in combined.items()}, name=name), conflict_total
 
 
-# ── Comparison ────────────────────────────────────────────────────────────────
+#  Comparison 
 
 def run_comparison(agent_A: BPA, agent_B: BPA) -> dict:
     print("=" * 60)

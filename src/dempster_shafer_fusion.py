@@ -1,17 +1,11 @@
 """
-dempster_shafer_fusion.py
---------------------------
 Belief fusion for heterogeneous agent diagnostics using Dempster-Shafer theory.
 
-Scenario: Two agents analyse a network incident and produce conflicting
-diagnostic hypotheses with different confidence levels. The DS combination
-rule fuses their beliefs without erasing the diversity of their assessments.
+Two agents analyse the same network incident and produce conflicting hypotheses.
+The DS combination rule fuses their beliefs without discarding either perspective.
 
-This directly prototypes Verrou 3 of the CIFRE thesis (ref. 2026-51517):
-"When heterogeneous agents produce contradictory diagnostics, what formal
-mechanism arbitrates without erasing model diversity?"
-
-Reference: Dempster (1967), Shafer (1976) — A Mathematical Theory of Evidence.
+Prototypes Verrou 3 of the CIFRE thesis (ref. 2026-51517).
+Reference: Dempster (1967), Shafer (1976).
 """
 
 from __future__ import annotations
@@ -24,7 +18,7 @@ from itertools import chain, combinations
 sns.set_theme(style="whitegrid", font_scale=1.1)
 
 
-#  Frame of Discernment 
+# Frame of Discernment
 
 # Possible diagnoses for a network incident
 FRAME = frozenset(["DDoS", "Hardware_Failure", "Config_Error", "Normal"])
@@ -40,14 +34,10 @@ def powerset(s: frozenset) -> list[frozenset]:
     ]
 
 
-#  Basic Probability Assignment (BPA) 
+# Basic Probability Assignment
 
 class BPA:
-    """
-    Basic Probability Assignment (mass function) for Dempster-Shafer theory.
-
-    m: 2^Θ → [0,1] such that Σ m(A) = 1 for all A ⊆ Θ, A ≠ ∅
-    """
+    """Mass function over 2^Θ. Masses must sum to 1; empty set gets mass 0."""
 
     def __init__(self, masses: dict[frozenset, float], name: str = ""):
         total = sum(masses.values())
