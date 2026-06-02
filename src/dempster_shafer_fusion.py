@@ -24,7 +24,7 @@ from itertools import chain, combinations
 sns.set_theme(style="whitegrid", font_scale=1.1)
 
 
-# ── Frame of Discernment ──────────────────────────────────────────────────────
+#  Frame of Discernment 
 
 # Possible diagnoses for a network incident
 FRAME = frozenset(["DDoS", "Hardware_Failure", "Config_Error", "Normal"])
@@ -40,7 +40,7 @@ def powerset(s: frozenset) -> list[frozenset]:
     ]
 
 
-# ── Basic Probability Assignment (BPA) ───────────────────────────────────────
+#  Basic Probability Assignment (BPA) 
 
 class BPA:
     """
@@ -76,7 +76,7 @@ class BPA:
         return "\n".join(lines)
 
 
-# ── Dempster Combination Rule ─────────────────────────────────────────────────
+#  Dempster Combination Rule 
 
 def dempster_combine(bpa1: BPA, bpa2: BPA, name: str = "Combined") -> BPA:
     """
@@ -114,7 +114,7 @@ def dempster_combine(bpa1: BPA, bpa2: BPA, name: str = "Combined") -> BPA:
     return BPA(normalised, name=name)
 
 
-# ── Scenario ──────────────────────────────────────────────────────────────────
+#  Scenario 
 
 def run_scenario() -> None:
     """
@@ -182,7 +182,7 @@ def run_scenario() -> None:
     return agent_A, agent_B, combined
 
 
-# ── Visualisation ─────────────────────────────────────────────────────────────
+#  Visualisation 
 
 def plot_fusion(agent_A: BPA, agent_B: BPA, combined: BPA) -> None:
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -243,7 +243,7 @@ def plot_fusion(agent_A: BPA, agent_B: BPA, combined: BPA) -> None:
     plt.close()
 
 
-# ── Conflict analysis ─────────────────────────────────────────────────────────
+#  Conflict analysis 
 
 def analyse_conflict_range() -> None:
     """
@@ -279,7 +279,7 @@ def analyse_conflict_range() -> None:
             print(f"  {conf:>10.1f}  {'complete':>12}  {'N/A':>16}")
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+#  Main 
 
 if __name__ == "__main__":
     agent_A, agent_B, combined = run_scenario()
